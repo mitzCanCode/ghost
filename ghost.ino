@@ -65,6 +65,7 @@
 
 #include "src/display/display.h"
 #include "src/networking/networking.h"
+#include "src/SD/sd_manager.h"
 
 void setup() {
 
@@ -77,6 +78,7 @@ void setup() {
     );
 
     networkingBegin();
+    sdManagerBegin();
 }
 
 void loop() {

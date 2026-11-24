@@ -13,9 +13,11 @@
 // Kept in this translation unit so there is exactly one definition.
 byte frame[MAX_FRAME];
 static bool networkingReady = false;
+static bool ethernetControllerDetected = false;
 
 void networkingBegin() {
   networkingReady = false;
+  ethernetControllerDetected = false;
 
   // Mega hardware SPI master mode.
   pinMode(53, OUTPUT);
@@ -33,6 +35,7 @@ void networkingBegin() {
     return;
   }
 
+  ethernetControllerDetected = true;
   Serial.println("Ethernet controller detected!");
   if (Ethernet.linkStatus() == LinkOFF) {
     Serial.println("Ethernet cable is not connected.");
@@ -62,6 +65,21 @@ void networkingBegin() {
 
 bool networkingAvailable() {
   return networkingReady && Ethernet.linkStatus() != LinkOFF;
+}
+
+DeviceStatus networkingStatus() {
+  if (!ethernetControllerDetected) {
+    return DeviceStatus::NotApplicable;
+  }
+
+  EthernetLinkStatus link = Ethernet.linkStatus();
+  if (link == LinkON) {
+    return DeviceStatus::On;
+  }
+  if (link == LinkOFF) {
+    return DeviceStatus::Off;
+  }
+  return DeviceStatus::NotApplicable;
 }
 
 void readRxBuffer(uint16_t ptr, byte *dest, uint16_t len) {

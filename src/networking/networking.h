@@ -2,9 +2,11 @@
 #define ETHERNET_PROJECT_NETWORKING_H
 
 #include <Arduino.h>
+#include "../../shared.h"
 
 void networkingBegin();
 bool networkingAvailable();
+DeviceStatus networkingStatus();
 void networkingPoll();
 void networkingPoll(bool capturePackets);
 void readRxBuffer(uint16_t ptr, byte *dest, uint16_t len);

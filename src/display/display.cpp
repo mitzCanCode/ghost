@@ -10,6 +10,9 @@
 #include "display_marquee.h"
 #include "display_packet_view.h"
 #include "../networking/networking.h"
+#include "../SD/sd_manager.h"
+
+static const unsigned long STATUS_SCAN_INTERVAL_MS = 5000;
 
 // Single TFT instance
 Adafruit_ILI9341 tft(TFT_CS, TFT_DC, TFT_RST);
@@ -63,10 +66,32 @@ void displayBegin() {
     displayMenuBegin();
 }
 
+static void updateHardwareStatuses() {
+    static unsigned long lastScan = 0;
+    static bool hasScanned = false;
+    unsigned long now = millis();
+
+    if (hasScanned && now - lastScan < STATUS_SCAN_INTERVAL_MS) {
+        return;
+    }
+
+    hasScanned = true;
+    lastScan = now;
+    sdManagerRefresh();
+
+    setStatusBarStatus(
+        DeviceStatus::NotApplicable,
+        DeviceStatus::NotApplicable,
+        networkingStatus(),
+        sdManagerStatus()
+    );
+}
+
 void displayUpdate() {
 
     displayInputUpdate();
     updateMarquee();
+    updateHardwareStatuses();
 
     bool scannerActive = displayMenuPacketScannerIsActive();
     bool available = networkingAvailable();

@@ -74,7 +74,7 @@ void updateMenuSelection(int previousSelection) {
   drawMenuItem(selectedItem);
 }
 
-enum Screen { MAIN_MENU, SETTINGS, TOOLS, SYSTEM_INFO, ABOUT, PACKET_SCANNER };
+enum Screen { MAIN_MENU, SETTINGS, NETWORK, SYSTEM_INFO, ABOUT, PACKET_SCANNER };
 
 struct ScreenDefinition {
   const char* title;
@@ -83,18 +83,18 @@ struct ScreenDefinition {
 };
 
 const MenuItem mainItems[] = {
-  { "System Information", true },
+  { "Network", true },
   { "Settings", true },
-  { "Tools", true },
-  { "About", true }
 };
 
 const MenuItem settingsItems[] = {
   { "Display Settings", false },
+  { "System Information", true },
+  { "About", true },
   { "Back", false }
 };
 
-const MenuItem toolsItems[] = {
+const MenuItem networkItems[] = {
   { "Packet Scanner", true },
   { "Diagnostics", false },
   { "Back", false }
@@ -116,16 +116,16 @@ const MenuItem aboutItems[] = {
   { "Back", false }
 };
 
-const MenuContent mainMenu = { mainItems, 4 };
-const MenuContent settingsMenu = { settingsItems, 2 };
-const MenuContent toolsMenu = { toolsItems, 3 };
+const MenuContent mainMenu = { mainItems, 2 };
+const MenuContent settingsMenu = { settingsItems, 4 };
+const MenuContent networkMenu = { networkItems, 3 };
 const MenuContent infoMenu = { infoItems, 5 };
 const MenuContent aboutMenu = { aboutItems, 5 };
 
 const ScreenDefinition screens[] = {
   { "MAIN MENU",   &mainMenu,     renderMenuContent },
   { "SETTINGS",    &settingsMenu, renderMenuContent },
-  { "TOOLS",       &toolsMenu,    renderMenuContent },
+  { "NETWORK",       &networkMenu,    renderMenuContent },
   { "SYSTEM INFO", &infoMenu,     renderMenuContent },
   { "ABOUT",       &aboutMenu,    renderMenuContent },
   { "PACKET SCANNER", NULL,       packetViewRender }
@@ -150,7 +150,23 @@ void renderScreen() {
 
 void goBack() {
   if (currentScreen == MAIN_MENU) return;
-  currentScreen = currentScreen == PACKET_SCANNER ? TOOLS : MAIN_MENU;
+  switch (currentScreen) {
+    case SETTINGS:
+      currentScreen = MAIN_MENU;
+      break;
+    case NETWORK:
+      currentScreen = MAIN_MENU;
+      break;
+    case ABOUT:
+      currentScreen = SETTINGS;
+      break;
+    case SYSTEM_INFO:
+      currentScreen = SETTINGS;
+      break;
+    case PACKET_SCANNER:
+      currentScreen = NETWORK;
+      break;
+  }
   selectedItem = 0;
   renderScreen();
 }
@@ -159,19 +175,23 @@ void activateItem() {
   switch (currentScreen) {
     case MAIN_MENU:
       switch (selectedItem) {
-        case 0: currentScreen = SYSTEM_INFO; break;
+        case 0: currentScreen = NETWORK; break;
         case 1: currentScreen = SETTINGS;    break;
-        case 2: currentScreen = TOOLS;       break;
-        case 3: currentScreen = ABOUT;        break;
+        case 2: currentScreen = ABOUT;       break;
       }
       selectedItem = 0;
       break;
 
     case SETTINGS:
-      if (selectedItem == 1) { goBack(); return; }
+
+      switch (selectedItem) {
+        case 1: currentScreen = SYSTEM_INFO; break;
+        case 2: currentScreen = ABOUT; break;
+      }
+      if (selectedItem == 3) { goBack(); return; }
       break;
 
-    case TOOLS:
+    case NETWORK:
       if (selectedItem == 0) {
         currentScreen = PACKET_SCANNER;
         selectedItem = 0;
