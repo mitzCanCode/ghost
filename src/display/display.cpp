@@ -1,54 +1,68 @@
+#include <SPI.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_ILI9341.h>
 
 #include "display.h"
+#include "display_config.h"
+#include "display_frame.h"
+#include "display_input.h"
+#include "display_menu.h"
+#include "display_marquee.h"
 
-// ASCII ART
-const char* const Display::asciiArtLines[] = {
-  "             ('-. .-.               .-')    .-') _",
-  "            ( OO )  /              ( OO ). (  OO) )",
-  "  ,----.    ,--. ,--. .-'),-----. (_)---\\_)/     '._ ",
-  " '  .-./-') |  | |  |( OO'  .-.  '/    _ | |'--...__)",
-  " |  |_( O- )|   .|  |/   |  | |  |\\  :` `. '--.  .--'",
-  " |  | .--, \\|       |\\_) |  |\\|  | '..`''.)   |  |",
-  "(|  | '. (_/|  .-.  |  \\ |  | |  |.-._)   \\   |  |",
-  " |  '--'  | |  | |  |   `'  '-'  '\\       /   |  |",
-  "  `------'  `--' `--'     `-----'  `-----'    `--'"
+// Single TFT instance
+Adafruit_ILI9341 tft(TFT_CS, TFT_DC, TFT_RST);
+
+// Startup logo
+static const char* logo[] = {
+    "             ('-. .-.               .-')    .-') _",
+    "            ( OO )  /              ( OO ). (  OO) )",
+    "  ,----.    ,--. ,--. .-'),-----. (_)---\\_)/     '._",
+    " '  .-./-') |  | |  |( OO'  .-.  '/    _ | |'--...__)",
+    " |  |_( O- )|   .|  |/   |  | |  |\\  :` `. '--.  .--'",
+    " |  | .--, \\|       |\\_) |  |\\|  | '..`''.)   |  |",
+    "(|  | '. (_/|  .-.  |  \\ |  | |  |.-._)   \\   |  |",
+    " |  '--'  | |  | |  |   `'  '-'  '\\       /   |  |",
+    "  `------'  `--' `--'     `-----'  `-----'    `--'"
 };
 
-const int Display::lineCount =
-    sizeof(Display::asciiArtLines) / sizeof(Display::asciiArtLines[0]);
+void showStartupLogo() {
 
-// Constructor
-Display::Display(Adafruit_ILI9341 &display)
-    : tft(display) {
-}
-
-// Initialize display
-void Display::begin() {
-    tft.begin();
-    tft.setRotation(3);
-    tft.fillScreen(ILI9341_BLACK);
-}
-
-// Print ASCII art
-void Display::printAsciiArt(uint16_t textColor, int characterDelay) {
-
-    tft.setFont();
-    tft.setTextSize(1);
-    tft.setTextColor(textColor);
-
+    const int lineCount = sizeof(logo) / sizeof(logo[0]);
     const int lineHeight = 12;
 
-    // Center vertically
-    int startY = (240 - (lineCount * lineHeight)) / 2;
+    int startY = (SCREEN_H - lineCount * lineHeight) / 2;
+
+    tft.fillScreen(BLACK);
+    tft.setTextSize(1);
+    tft.setTextColor(PINK);
+    tft.setFont();
 
     for (int i = 0; i < lineCount; i++) {
-
         tft.setCursor(0, startY + i * lineHeight);
-
-        for (int j = 0; asciiArtLines[i][j] != '\0'; j++) {
-            tft.write(asciiArtLines[i][j]);
-            delay(characterDelay); // Delay between characters
-        }
+        tft.println(logo[i]);
     }
 
+    delay(2000);
+
+    tft.fillScreen(BLACK);
+}
+
+void displayBegin() {
+
+    pinMode(TFT_BACKLIGHT, OUTPUT);
+    digitalWrite(TFT_BACKLIGHT, HIGH);
+
+    tft.begin(60000000);
+    tft.setRotation(1);
+
+    showStartupLogo();
+
+    displayInputBegin();
+    displayMenuBegin();
+}
+
+void displayUpdate() {
+
+    displayInputUpdate();
+    updateMarquee();
 }
