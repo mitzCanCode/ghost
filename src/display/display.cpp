@@ -8,6 +8,8 @@
 #include "display_input.h"
 #include "display_menu.h"
 #include "display_marquee.h"
+#include "display_packet_view.h"
+#include "../networking/networking.h"
 
 // Single TFT instance
 Adafruit_ILI9341 tft(TFT_CS, TFT_DC, TFT_RST);
@@ -65,4 +67,16 @@ void displayUpdate() {
 
     displayInputUpdate();
     updateMarquee();
+
+    bool scannerActive = displayMenuPacketScannerIsActive();
+    bool available = networkingAvailable();
+    if (scannerActive) {
+        displayMenuSetPacketScannerAvailable(available);
+    }
+    if (available) {
+        networkingPoll(scannerActive && packetViewIsRunning());
+    }
+    if (scannerActive) {
+        packetViewUpdate();
+    }
 }

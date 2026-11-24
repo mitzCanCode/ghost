@@ -2,16 +2,21 @@
 
 #include <SPI.h>
 #include <Ethernet.h>
+#include <string.h>
 #include <utility/w5100.h>
 
 #include "../printing/printing.h"
+#include "../display/display_packet_view.h"
 #include "arp/arp.h"
 #include "../../shared.h"
 
 // Kept in this translation unit so there is exactly one definition.
 byte frame[MAX_FRAME];
+static bool networkingReady = false;
 
 void networkingBegin() {
+  networkingReady = false;
+
   // Mega hardware SPI master mode.
   pinMode(53, OUTPUT);
   digitalWrite(53, HIGH);
@@ -21,27 +26,22 @@ void networkingBegin() {
   digitalWrite(SD_CS, HIGH);
 
   Ethernet.init(ETH_CS);
-  Serial.println("Initializing W5100...");
+  Serial.println("Initializing Ethernet controller...");
 
   if (!W5100.init()) {
-    Serial.println("W5100 not detected!");
-    while (true) {
-    }
+    Serial.println("Ethernet controller not detected!");
+    return;
   }
 
-  Serial.println("W5100 detected!");
+  Serial.println("Ethernet controller detected!");
+  if (Ethernet.linkStatus() == LinkOFF) {
+    Serial.println("Ethernet cable is not connected.");
+    return;
+  }
 
   byte mac[] = {0x02, 0xA1, 0xB2, 0xC3, 0xD4, 0xE5};
-  if (Ethernet.begin(mac) == 0) {
-    Serial.println("DHCP failed!");
-    while (true) {
-    }
-  }
-
-  Serial.print("Arduino IP: ");
-  Serial.println(Ethernet.localIP());
-
   SPI.beginTransaction(SPI_ETHERNET_SETTINGS);
+  W5100.setMACAddress(mac);
   W5100.execCmdSn(0, Sock_CLOSE);
   W5100.writeSnMR(0, SnMR::MACRAW);
   W5100.execCmdSn(0, Sock_OPEN);
@@ -53,11 +53,15 @@ void networkingBegin() {
 
   if (status != SnSR::MACRAW) {
     Serial.println("MACRAW mode failed!");
-    while (true) {
-    }
+    return;
   }
 
+  networkingReady = true;
   Serial.println("Ethernet monitor ready!");
+}
+
+bool networkingAvailable() {
+  return networkingReady && Ethernet.linkStatus() != LinkOFF;
 }
 
 void readRxBuffer(uint16_t ptr, byte *dest, uint16_t len) {
@@ -195,6 +199,14 @@ void decodeFrame(const byte *frame, uint16_t length) {
 }
 
 void networkingPoll() {
+  networkingPoll(true);
+}
+
+void networkingPoll(bool capturePackets) {
+  if (!networkingAvailable()) {
+    return;
+  }
+
   byte header[2];
 
   SPI.beginTransaction(SPI_ETHERNET_SETTINGS);
@@ -234,5 +246,89 @@ void networkingPoll() {
   W5100.execCmdSn(0, Sock_RECV);
   SPI.endTransaction();
 
-  decodeFrame(frame, frameLength);
+  PacketDetails packet = {};
+  packet.frameLength = frameLength;
+  if (frameLength >= 14) {
+    memcpy(packet.destinationMac, frame, sizeof(packet.destinationMac));
+    memcpy(packet.sourceMac, frame + 6, sizeof(packet.sourceMac));
+
+    uint16_t etherType = read16(frame + 12);
+    uint16_t offset = 14;
+    while ((etherType == 0x8100 || etherType == 0x88A8) &&
+           frameLength >= offset + 4) {
+      if (packet.vlanCount < 2) {
+        packet.vlanIds[packet.vlanCount] = read16(frame + offset) & 0x0FFF;
+      }
+      ++packet.vlanCount;
+      packet.hasVlan = true;
+      etherType = read16(frame + offset + 2);
+      offset += 4;
+    }
+    packet.etherType = etherType;
+    packet.type = PACKET_TYPE_OTHER;
+
+    if (etherType == 0x0806 && frameLength >= offset + 28) {
+      const byte *arp = frame + offset;
+      packet.type = PACKET_TYPE_ARP;
+      packet.hasIp = true;
+      packet.hasArp = true;
+      packet.arpOperation = read16(arp + 6);
+      memcpy(packet.sourceIp, arp + 14, sizeof(packet.sourceIp));
+      memcpy(packet.destinationIp, arp + 24, sizeof(packet.destinationIp));
+    } else if (etherType == 0x0800 && frameLength >= offset + 20) {
+      const byte *ip = frame + offset;
+      uint8_t ipHeaderLength = (ip[0] & 0x0F) * 4;
+      uint16_t ipLength = read16(ip + 2);
+
+      if ((ip[0] >> 4) == 4 && ipHeaderLength >= 20 &&
+          frameLength >= offset + ipHeaderLength && ipLength >= ipHeaderLength) {
+        packet.hasIp = true;
+        packet.ipLength = ipLength;
+        memcpy(packet.sourceIp, ip + 12, sizeof(packet.sourceIp));
+        memcpy(packet.destinationIp, ip + 16, sizeof(packet.destinationIp));
+
+        uint8_t protocol = ip[9];
+        packet.ipProtocol = protocol;
+        uint16_t transportOffset = offset + ipHeaderLength;
+        uint16_t available = frameLength - transportOffset;
+        uint16_t payloadLength = ipLength - ipHeaderLength;
+        if (available > payloadLength) {
+          available = payloadLength;
+        }
+
+        if (protocol == 6 || protocol == 17) {
+          packet.type = protocol == 6 ? PACKET_TYPE_TCP : PACKET_TYPE_UDP;
+          if (available >= 4) {
+            packet.hasPorts = true;
+            packet.sourcePort = read16(frame + transportOffset);
+            packet.destinationPort = read16(frame + transportOffset + 2);
+          }
+        } else if (protocol == 1) {
+          packet.type = PACKET_TYPE_ICMP;
+          if (available >= 2) {
+            packet.hasIcmp = true;
+            packet.icmpType = frame[transportOffset];
+            packet.icmpCode = frame[transportOffset + 1];
+          }
+        } else if (protocol == 2) {
+          packet.type = PACKET_TYPE_IGMP;
+          if (available >= 2) {
+            packet.hasIgmp = true;
+            packet.igmpType = frame[transportOffset];
+            packet.igmpMaxResponse = frame[transportOffset + 1];
+          }
+        } else {
+          packet.type = PACKET_TYPE_IPV4;
+        }
+      }
+    }
+
+    if (capturePackets) {
+      packetViewAddPacket(packet);
+    }
+  }
+
+  if (capturePackets) {
+    decodeFrame(frame, frameLength);
+  }
 }

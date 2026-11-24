@@ -37,7 +37,33 @@ void displayInputBegin() {
 
 void displayInputUpdate() {
   Button button = readButton();
-  if (button != NONE) {
-    displayMenuUpdate(button);
-  }
+if (button != NONE) {
+        switch (button) {
+            case UP:
+                Serial.println("UP button pressed");
+                break;
+
+            case DOWN:
+                Serial.println("DOWN button pressed");
+                break;
+
+            case LEFT:
+                Serial.println("LEFT button pressed");
+                break;
+
+            case RIGHT:
+                Serial.println("RIGHT button pressed");
+                break;
+
+            case SELECT:
+                Serial.println("SELECT button pressed");
+                break;
+
+            default:
+                Serial.println("Unknown button");
+                break;
+        }
+
+        displayMenuUpdate(button);
+    }
 }

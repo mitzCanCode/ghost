@@ -5,16 +5,16 @@
 #include <Arduino.h>
 
 // TFT hardware
-#define TFT_CS          10
+#define TFT_CS          6
 #define TFT_DC          7
 #define TFT_RST         8
 #define TFT_BACKLIGHT   9
 
 // Buttons
-#define BTN_UP          22
-#define BTN_DOWN        23
-#define BTN_LEFT        24
-#define BTN_RIGHT       25
+#define BTN_UP          23
+#define BTN_DOWN        25
+#define BTN_LEFT        22
+#define BTN_RIGHT       24
 #define BTN_SELECT      26
 
 // Screen dimensions

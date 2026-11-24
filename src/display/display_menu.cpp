@@ -7,6 +7,8 @@
 #include "display_input.h"
 #include "display_marquee.h"
 #include "display_menu.h"
+#include "display_packet_view.h"
+#include "../networking/networking.h"
 
 typedef void (*ContentRenderer)();
 
@@ -72,7 +74,7 @@ void updateMenuSelection(int previousSelection) {
   drawMenuItem(selectedItem);
 }
 
-enum Screen { MAIN_MENU, SETTINGS, TOOLS, SYSTEM_INFO, ABOUT };
+enum Screen { MAIN_MENU, SETTINGS, TOOLS, SYSTEM_INFO, ABOUT, PACKET_SCANNER };
 
 struct ScreenDefinition {
   const char* title;
@@ -93,6 +95,7 @@ const MenuItem settingsItems[] = {
 };
 
 const MenuItem toolsItems[] = {
+  { "Packet Scanner", true },
   { "Diagnostics", false },
   { "Back", false }
 };
@@ -115,7 +118,7 @@ const MenuItem aboutItems[] = {
 
 const MenuContent mainMenu = { mainItems, 4 };
 const MenuContent settingsMenu = { settingsItems, 2 };
-const MenuContent toolsMenu = { toolsItems, 2 };
+const MenuContent toolsMenu = { toolsItems, 3 };
 const MenuContent infoMenu = { infoItems, 5 };
 const MenuContent aboutMenu = { aboutItems, 5 };
 
@@ -124,7 +127,8 @@ const ScreenDefinition screens[] = {
   { "SETTINGS",    &settingsMenu, renderMenuContent },
   { "TOOLS",       &toolsMenu,    renderMenuContent },
   { "SYSTEM INFO", &infoMenu,     renderMenuContent },
-  { "ABOUT",       &aboutMenu,    renderMenuContent }
+  { "ABOUT",       &aboutMenu,    renderMenuContent },
+  { "PACKET SCANNER", NULL,       packetViewRender }
 };
 
 Screen currentScreen = MAIN_MENU;
@@ -146,7 +150,7 @@ void renderScreen() {
 
 void goBack() {
   if (currentScreen == MAIN_MENU) return;
-  currentScreen = MAIN_MENU;
+  currentScreen = currentScreen == PACKET_SCANNER ? TOOLS : MAIN_MENU;
   selectedItem = 0;
   renderScreen();
 }
@@ -168,7 +172,16 @@ void activateItem() {
       break;
 
     case TOOLS:
-      if (selectedItem == 1) { goBack(); return; }
+      if (selectedItem == 0) {
+        currentScreen = PACKET_SCANNER;
+        selectedItem = 0;
+        if (!networkingAvailable()) {
+          networkingBegin();
+        }
+        packetViewSetAvailable(networkingAvailable());
+        break;
+      }
+      if (selectedItem == 2) { goBack(); return; }
       break;
 
     case SYSTEM_INFO:
@@ -185,6 +198,13 @@ void activateItem() {
 
 void displayMenuUpdate(Button button) {
   if (button == NONE) return;
+
+  if (currentScreen == PACKET_SCANNER) {
+    if (!packetViewHandleInput(button)) {
+      goBack();
+    }
+    return;
+  }
 
   const MenuContent* menu = screens[currentScreen].menu;
   uint8_t itemCount = menu == NULL ? 0 : menu->count;
@@ -219,4 +239,14 @@ void displayMenuBegin() {
   currentScreen = MAIN_MENU;
   selectedItem = 0;
   renderScreen();
+}
+
+bool displayMenuPacketScannerIsActive() {
+  return currentScreen == PACKET_SCANNER;
+}
+
+void displayMenuSetPacketScannerAvailable(bool isAvailable) {
+  if (displayMenuPacketScannerIsActive()) {
+    packetViewSetAvailable(isAvailable);
+  }
 }

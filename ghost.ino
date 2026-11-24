@@ -64,16 +64,19 @@
 #include "shared.h"
 
 #include "src/display/display.h"
+#include "src/networking/networking.h"
 
 void setup() {
 
-    Serial.begin(9600);
+    Serial.begin(19200);
 
     displayBegin();
 
     setNotificationText(
         "   MEGA TERMINAL   -   SYSTEM ONLINE   -   BLACK & PINK EDITION   "
     );
+
+    networkingBegin();
 }
 
 void loop() {

@@ -6,5 +6,7 @@
 void displayMenuBegin();
 void displayMenuUpdate(Button button);
 void renderScreen();
+bool displayMenuPacketScannerIsActive();
+void displayMenuSetPacketScannerAvailable(bool isAvailable);
 
 #endif
