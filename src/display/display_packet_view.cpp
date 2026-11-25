@@ -7,6 +7,7 @@
 #include "display_frame.h"
 #include "display_input.h"
 #include "display_packet_view.h"
+#include "../SD/theme/theme.h"
 
 namespace {
 const uint8_t PACKET_LIST_CAPACITY = 10;
@@ -59,9 +60,9 @@ void drawListRow(uint8_t index, uint8_t visibleIndex) {
   PacketDetails& packet = packets[index];
 
   tft.fillRect(CONTENT_X, y, CONTENT_W, LIST_ROW_HEIGHT - 1,
-               selected ? PINK : BLACK);
+               selected ? themePrimary() : themeBackground());
   tft.setTextSize(1);
-  tft.setTextColor(selected ? BLACK : WHITE);
+  tft.setTextColor(selected ? themeBackground() : themeText());
   tft.setCursor(CONTENT_X + 3, y + 6);
 
   if (packet.hasIp) {
@@ -87,16 +88,16 @@ void drawListRow(uint8_t index, uint8_t visibleIndex) {
 }
 
 void drawCaptureFooter() {
-  tft.fillRect(128, FOOTER_TEXT_Y, 100, 8, BLACK);
+  tft.fillRect(128, FOOTER_TEXT_Y, 100, 8, themeBackground());
   tft.setTextSize(1);
-  tft.setTextColor(PINK);
+  tft.setTextColor(themeSecondary());
   tft.setCursor(130, FOOTER_TEXT_Y);
   tft.print(scanning ? "CENTER: PAUSE" : "CENTER: START");
 }
 
 void drawList() {
   tft.setTextSize(1);
-  tft.setTextColor(PINK);
+  tft.setTextColor(themeSecondary());
   tft.setCursor(CONTENT_X + 3, LIST_HEADER_Y);
   tft.print("IP");
   tft.setCursor(CONTENT_X + 96, LIST_HEADER_Y);
@@ -105,7 +106,7 @@ void drawList() {
   tft.print("TYPE");
 
   if (packetCount == 0) {
-    tft.setTextColor(WHITE);
+    tft.setTextColor(themeText());
     tft.setCursor(CONTENT_X + 5, LIST_FIRST_ROW_Y + 8);
     tft.print("Listening for packets...");
     return;
@@ -131,10 +132,10 @@ void keepSelectionVisible() {
 void drawDetailRow(uint8_t row, const char* label, const char* value) {
   int y = CONTENT_Y + 12 + row * 12;
   tft.setTextSize(1);
-  tft.setTextColor(PINK);
+  tft.setTextColor(themeSecondary());
   tft.setCursor(CONTENT_X + 3, y);
   tft.print(label);
-  tft.setTextColor(WHITE);
+  tft.setTextColor(themeText());
   tft.print(value);
 }
 
@@ -246,7 +247,7 @@ void packetViewAddPacket(const PacketDetails& packet) {
 void packetViewRender() {
   drawCaptureFooter();
   if (!available) {
-    tft.setTextColor(WHITE);
+    tft.setTextColor(themeText());
     tft.setTextSize(2);
     tft.setCursor(CONTENT_X + 5, CONTENT_Y + 12);
     tft.println("Internet not available");
@@ -295,7 +296,7 @@ void packetViewSetAvailable(bool isAvailable) {
   }
   available = isAvailable;
   tft.fillRect(CONTENT_X, CONTENT_Y, CONTENT_W,
-               CONTENT_BOTTOM - CONTENT_Y, BLACK);
+               CONTENT_BOTTOM - CONTENT_Y, themeBackground());
   packetViewRender();
 }
 
@@ -308,7 +309,7 @@ bool packetViewHandleInput(uint8_t button) {
     if (showingDetails) {
       showingDetails = false;
       tft.fillRect(CONTENT_X, CONTENT_Y, CONTENT_W,
-                   CONTENT_BOTTOM - CONTENT_Y, BLACK);
+                   CONTENT_BOTTOM - CONTENT_Y, themeBackground());
       packetViewRender();
       return true;
     }
@@ -347,7 +348,7 @@ bool packetViewHandleInput(uint8_t button) {
     detailPacket = packets[selectedPacket];
     showingDetails = true;
     tft.fillRect(CONTENT_X, CONTENT_Y, CONTENT_W,
-                 CONTENT_BOTTOM - CONTENT_Y, BLACK);
+                 CONTENT_BOTTOM - CONTENT_Y, themeBackground());
     drawDetails();
   }
 

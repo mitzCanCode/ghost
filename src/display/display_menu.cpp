@@ -9,6 +9,7 @@
 #include "display_menu.h"
 #include "display_packet_view.h"
 #include "../networking/networking.h"
+#include "../SD/theme/theme.h"
 
 typedef void (*ContentRenderer)();
 
@@ -23,18 +24,23 @@ struct MenuContent {
 };
 
 int selectedItem = 0;
+int firstVisibleItem = 0;
 const MenuContent* activeMenu = NULL;
 
+const int MENU_ITEM_HEIGHT = 22;
+const int MENU_ITEM_GAP = 2;
+const uint8_t MENU_VISIBLE_ROWS =
+    (CONTENT_BOTTOM - CONTENT_Y) / (MENU_ITEM_HEIGHT + MENU_ITEM_GAP);
+
+bool themeScreenActive();
 
 void drawMenuItem(uint8_t index) {
   if (activeMenu == NULL || index >= activeMenu->count) return;
 
-  const int itemHeight = 22;
-  const int itemGap = 2;
+  int y = CONTENT_Y + (index - firstVisibleItem) *
+                          (MENU_ITEM_HEIGHT + MENU_ITEM_GAP);
 
-  int y = CONTENT_Y + index * (itemHeight + itemGap);
-
-  if (y + itemHeight > CONTENT_BOTTOM) return;
+  if (y + MENU_ITEM_HEIGHT > CONTENT_BOTTOM) return;
 
   bool selected = (index == selectedItem);
 
@@ -43,12 +49,12 @@ void drawMenuItem(uint8_t index) {
   // Clear and draw selection background.
   tft.fillRect(
     CONTENT_X, y,
-    CONTENT_W, itemHeight,
-    selected ? PINK : BLACK
+    CONTENT_W, MENU_ITEM_HEIGHT,
+    selected ? themePrimary() : themeBackground()
   );
 
   tft.setTextSize(2);
-  tft.setTextColor(selected ? BLACK : WHITE);
+  tft.setTextColor(selected ? themeBackground() : themeText());
 
   // Draw item name without a selection prefix.
   tft.setCursor(15, y + 3);
@@ -58,23 +64,46 @@ void drawMenuItem(uint8_t index) {
   if (item.navigation) {
     tft.setCursor(CONTENT_X + CONTENT_W - 16, y + 3);
     tft.print(">");
+  } else if (themeScreenActive() && index == selectedThemeIndex()) {
+    tft.setCursor(CONTENT_X + CONTENT_W - 16, y + 3);
+    tft.print("*");
   }
 }
 
 void renderMenuContent() {
   if (activeMenu == NULL) return;
 
-  for (uint8_t i = 0; i < activeMenu->count; i++) {
+  for (uint8_t i = firstVisibleItem;
+       i < activeMenu->count && i < firstVisibleItem + MENU_VISIBLE_ROWS;
+       i++) {
     drawMenuItem(i);
   }
 }
 
 void updateMenuSelection(int previousSelection) {
+  if (selectedItem < firstVisibleItem) {
+    firstVisibleItem = selectedItem;
+    renderMenuContent();
+    return;
+  }
+  if (selectedItem >= firstVisibleItem + MENU_VISIBLE_ROWS) {
+    firstVisibleItem = selectedItem - MENU_VISIBLE_ROWS + 1;
+    renderMenuContent();
+    return;
+  }
   drawMenuItem(previousSelection);
   drawMenuItem(selectedItem);
 }
 
-enum Screen { MAIN_MENU, SETTINGS, NETWORK, SYSTEM_INFO, ABOUT, PACKET_SCANNER };
+enum Screen {
+  MAIN_MENU,
+  SETTINGS,
+  THEMES,
+  NETWORK,
+  SYSTEM_INFO,
+  ABOUT,
+  PACKET_SCANNER
+};
 
 struct ScreenDefinition {
   const char* title;
@@ -88,11 +117,14 @@ const MenuItem mainItems[] = {
 };
 
 const MenuItem settingsItems[] = {
-  { "Display Settings", false },
+  { "Themes", true },
   { "System Information", true },
   { "About", true },
   { "Back", false }
 };
+
+MenuItem themeItems[11];
+MenuContent themeMenu = { themeItems, 0 };
 
 const MenuItem networkItems[] = {
   { "Packet Scanner", true },
@@ -112,7 +144,7 @@ const MenuItem aboutItems[] = {
   { "MEGA TERMINAL", false },
   { "ILI9341 UI Framework", false },
   { "Version 0.1", false },
-  { "Black and Pink", false },
+  { "Theme-aware display", false },
   { "Back", false }
 };
 
@@ -125,6 +157,7 @@ const MenuContent aboutMenu = { aboutItems, 5 };
 const ScreenDefinition screens[] = {
   { "MAIN MENU",   &mainMenu,     renderMenuContent },
   { "SETTINGS",    &settingsMenu, renderMenuContent },
+  { "THEMES",      &themeMenu,    renderMenuContent },
   { "NETWORK",       &networkMenu,    renderMenuContent },
   { "SYSTEM INFO", &infoMenu,     renderMenuContent },
   { "ABOUT",       &aboutMenu,    renderMenuContent },
@@ -132,6 +165,10 @@ const ScreenDefinition screens[] = {
 };
 
 Screen currentScreen = MAIN_MENU;
+
+bool themeScreenActive() {
+  return currentScreen == THEMES;
+}
 
 void renderScreen() {
   const ScreenDefinition& screen = screens[currentScreen];
@@ -141,6 +178,11 @@ void renderScreen() {
     selectedItem = constrain(
         selectedItem, 0, (int)activeMenu->count - 1
     );
+    if (selectedItem < firstVisibleItem) {
+      firstVisibleItem = selectedItem;
+    } else if (selectedItem >= firstVisibleItem + MENU_VISIBLE_ROWS) {
+      firstVisibleItem = selectedItem - MENU_VISIBLE_ROWS + 1;
+    }
   }
 
   drawSharedFrame(screen.title);
@@ -153,6 +195,9 @@ void goBack() {
   switch (currentScreen) {
     case SETTINGS:
       currentScreen = MAIN_MENU;
+      break;
+    case THEMES:
+      currentScreen = SETTINGS;
       break;
     case NETWORK:
       currentScreen = MAIN_MENU;
@@ -183,12 +228,23 @@ void activateItem() {
       break;
 
     case SETTINGS:
-
-      switch (selectedItem) {
-        case 1: currentScreen = SYSTEM_INFO; break;
-        case 2: currentScreen = ABOUT; break;
+      if (selectedItem == 0) {
+        currentScreen = THEMES;
+        selectedItem = selectedThemeIndex();
+      } else if (selectedItem == 1) {
+        currentScreen = SYSTEM_INFO;
+      } else if (selectedItem == 2) {
+        currentScreen = ABOUT;
+      } else if (selectedItem == 3) {
+        goBack();
+        return;
       }
-      if (selectedItem == 3) { goBack(); return; }
+      break;
+
+    case THEMES:
+      if (!selectTheme(themeIdAt(selectedItem))) {
+        Serial.println("Unable to save selected theme.");
+      }
       break;
 
     case NETWORK:
@@ -256,8 +312,14 @@ void displayMenuUpdate(Button button) {
 }
 
 void displayMenuBegin() {
+  for (uint8_t i = 0; i < themeCount(); ++i) {
+    themeItems[i].label = themeLabelAt(i);
+    themeItems[i].navigation = false;
+  }
+  themeMenu.count = themeCount();
   currentScreen = MAIN_MENU;
   selectedItem = 0;
+  firstVisibleItem = 0;
   renderScreen();
 }
 

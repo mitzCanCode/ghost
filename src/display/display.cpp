@@ -10,7 +10,8 @@
 #include "display_marquee.h"
 #include "display_packet_view.h"
 #include "../networking/networking.h"
-#include "../SD/sd_manager.h"
+#include "../SD/manager/sd_manager.h"
+#include "../SD/theme/theme.h"
 
 static const unsigned long STATUS_SCAN_INTERVAL_MS = 5000;
 
@@ -37,9 +38,9 @@ void showStartupLogo() {
 
     int startY = (SCREEN_H - lineCount * lineHeight) / 2;
 
-    tft.fillScreen(BLACK);
+    tft.fillScreen(themeBackground());
     tft.setTextSize(1);
-    tft.setTextColor(PINK);
+    tft.setTextColor(themePrimary());
     tft.setFont();
 
     for (int i = 0; i < lineCount; i++) {
@@ -49,7 +50,7 @@ void showStartupLogo() {
 
     delay(2000);
 
-    tft.fillScreen(BLACK);
+    tft.fillScreen(themeBackground());
 }
 
 void displayBegin() {

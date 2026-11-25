@@ -65,20 +65,25 @@
 
 #include "src/display/display.h"
 #include "src/networking/networking.h"
-#include "src/SD/sd_manager.h"
+#include "src/SD/manager/sd_manager.h"
+#include "src/SD/theme/theme.h"
 
 void setup() {
 
     Serial.begin(19200);
 
+    sdManagerBegin();
+    if (!loadTheme()) {
+        Serial.println("Unable to load theme files; using the default theme.");
+    }
+
     displayBegin();
 
     setNotificationText(
-        "   MEGA TERMINAL   -   SYSTEM ONLINE   -   BLACK & PINK EDITION   "
+        "   MEGA TERMINAL   -   SYSTEM ONLINE   -   THEMED EDITION   "
     );
 
     networkingBegin();
-    sdManagerBegin();
 }
 
 void loop() {

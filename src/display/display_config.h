@@ -21,12 +21,6 @@
 #define SCREEN_W        320
 #define SCREEN_H        240
 
-// Colors
-#define BLACK           0x0000
-#define PINK            0xE0B2
-#define DARK_PINK       0xE0B2
-#define WHITE           0xFFFF
-
 // Frame
 #define FRAME_X         5
 #define FRAME_W         310

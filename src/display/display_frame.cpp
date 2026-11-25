@@ -1,5 +1,6 @@
 #include "display_config.h"
 #include "display_frame.h"
+#include "../SD/theme/theme.h"
 
 static DeviceStatus wifiStatus = DeviceStatus::NotApplicable;
 static DeviceStatus bluetoothStatus = DeviceStatus::NotApplicable;
@@ -27,9 +28,9 @@ static void printStorageStatus(StorageStatus status) {
 }
 
 static void drawStatusBar() {
-    tft.fillRect(0, STATUS_Y, SCREEN_W, STATUS_RULE_Y - STATUS_Y, BLACK);
+    tft.fillRect(0, STATUS_Y, SCREEN_W, STATUS_RULE_Y - STATUS_Y, themeBackground());
     tft.setTextSize(1);
-    tft.setTextColor(PINK);
+    tft.setTextColor(themeSecondary());
 
     tft.setCursor(22, STATUS_Y);
     tft.print("WIFI:");
@@ -68,7 +69,7 @@ void setStatusBarStatus(
 
 void drawFooter() {
     tft.setTextSize(1);
-    tft.setTextColor(PINK);
+    tft.setTextColor(themeSecondary());
 
     tft.setCursor(8, FOOTER_TEXT_Y);
     tft.print("UP/DOWN: MOVE");
@@ -81,21 +82,21 @@ void drawFooter() {
 }
 
 void drawSharedFrame(const char* title) {
-    tft.fillScreen(BLACK);
+    tft.fillScreen(themeBackground());
 
     tft.setTextSize(1);
-    tft.setTextColor(PINK);
+    tft.setTextColor(themeSecondary());
 
     drawStatusBar();
 
-    drawFrameRule(STATUS_RULE_Y, PINK);
+    drawFrameRule(STATUS_RULE_Y, themePrimary());
 
     tft.setTextSize(2);
-    tft.setTextColor(WHITE);
+    tft.setTextColor(themeText());
     tft.setCursor(8, TITLE_Y);
     tft.print(title);
 
-    drawFrameRule(TITLE_RULE_Y, DARK_PINK);
+    drawFrameRule(TITLE_RULE_Y, themeSecondary());
 
     drawMarqueeBorders();
 

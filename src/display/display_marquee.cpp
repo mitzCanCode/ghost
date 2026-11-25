@@ -10,9 +10,10 @@
 #include "display_config.h"
 #include "display_frame.h"
 #include "display_marquee.h"
+#include "../SD/theme/theme.h"
 
 
-char notificationText[NOTIFICATION_MAX_CHARS] = "   MEGA TERMINAL   -   SYSTEM ONLINE   -   BLACK & PINK EDITION   ";
+char notificationText[NOTIFICATION_MAX_CHARS] = "   MEGA TERMINAL   -   SYSTEM ONLINE   -   THEMED EDITION   ";
 
 
 GFXcanvas1 marqueeCanvas(FRAME_W, MARQUEE_MAX_HEIGHT);
@@ -20,8 +21,8 @@ int marqueeX = SCREEN_W;
 unsigned long lastMarqueeUpdate = 0;
 
 void drawMarqueeBorders() {
-  drawFrameRule(MARQUEE_Y - 3, DARK_PINK);
-  drawFrameRule(MARQUEE_Y + MARQUEE_H + 3, DARK_PINK);
+  drawFrameRule(MARQUEE_Y - 3, themeSecondary());
+  drawFrameRule(MARQUEE_Y + MARQUEE_H + 3, themeSecondary());
 }
 
 void drawMarquee() {
@@ -33,7 +34,7 @@ void drawMarquee() {
   marqueeCanvas.print(notificationText);
 
   tft.drawBitmap(FRAME_X, MARQUEE_Y, marqueeCanvas.getBuffer(),
-                 FRAME_W, MARQUEE_H, PINK, BLACK);
+                 FRAME_W, MARQUEE_H, themePrimary(), themeBackground());
 }
 
 void setNotificationText(const char* text) {
